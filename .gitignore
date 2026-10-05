@@ -1,0 +1,17 @@
+.idea/*
+.venv/*
+ela_results/*
+data/*
+__pycache__
+original/test/fake/*
+original/test/real/*
+original/train/fake/*
+original/train/real/*
+models/*
+!ela_results/.gitkeep
+!original/test/fake/.gitkeep
+!original/test/real/.gitkeep
+!original/train/fake/.gitkeep
+!original/train/real/.gitkeep
+!models/.gitkeep
+original/original.zip
