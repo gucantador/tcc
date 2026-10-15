@@ -7,6 +7,9 @@ original/test/fake/*
 original/test/real/*
 original/train/fake/*
 original/train/real/*
+facebook/index.csv
+facebook/resultados/*
+ela_cache/*
 models/*
 !ela_results/.gitkeep
 !original/test/fake/.gitkeep
