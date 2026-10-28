@@ -66,11 +66,11 @@ def criar_loader(linhas, args, treino=False):
 
 # ---------------------------------------------------------------- modelo
 class CNNArtigo(nn.Module):
-    """Figura 4c do artigo. Com entrada de 512px é idêntica à original;
+    """Figura 4c do artigo. Com entrada de 256px é idêntica à original;
     para outros tamanhos, o número de entradas da camada final é
     calculado automaticamente."""
 
-    def __init__(self, tamanho=512, canais=3):
+    def __init__(self, tamanho=256, canais=3):
         super().__init__()
 
         def bloco(c_in, c_out, k):
@@ -117,7 +117,7 @@ def resumo(nome, linhas):
 def main():
     a = argparse.ArgumentParser()
     a.add_argument("--index", default="index.csv")
-    a.add_argument("--tamanho", type=int, default=512)
+    a.add_argument("--tamanho", type=int, default=256)
     a.add_argument("--qualidade", type=int, default=95, help="qualidade JPEG do ELA")
     a.add_argument("--treino_condicoes", nargs="*", default=None,
                    help="condições usadas em treino/validação (padrão: todas)")
