@@ -15,6 +15,9 @@ Exemplos:
     # recorte de 256px (se as redes sociais reduzirem muito as imagens)
     python treinar_cnn.py --tamanho 256
 
+    # treinar sem ELA (entrada = recorte RGB puro)
+    python treinar_cnn.py --ela nao
+
     # trabalhar com um pedaço do dataset (ex.: 2000 imagens por gerador/base)
     python treinar_cnn.py --max_grupos 2000
 
@@ -32,25 +35,29 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
-from comum import (balancear, dividir_por_grupo, ela_de_arquivo, ler_index,
+from comum import (balancear, dividir_por_grupo, imagem_de_arquivo, ler_index,
                    limitar_grupos, metricas)
 
 
 # ---------------------------------------------------------------- dados
 class ELADataset(Dataset):
-    """Calcula o ELA na hora (nos processos do DataLoader), sem cache em disco."""
+    """Calcula a entrada na hora (nos processos do DataLoader), sem cache em disco.
 
-    def __init__(self, linhas, tamanho, qualidade, aumentar=False):
+    Com usar_ela=True a entrada é o mapa ELA; senão, o recorte RGB puro.
+    """
+
+    def __init__(self, linhas, tamanho, qualidade, usar_ela=True, aumentar=False):
         self.linhas, self.tamanho, self.qualidade = linhas, tamanho, qualidade
-        self.aumentar = aumentar
+        self.usar_ela, self.aumentar = usar_ela, aumentar
 
     def __len__(self):
         return len(self.linhas)
 
     def __getitem__(self, i):
         l = self.linhas[i]
-        ela = ela_de_arquivo(l["caminho"], self.tamanho, self.qualidade)
-        x = torch.from_numpy(ela.astype(np.float32)).permute(2, 0, 1) / 255.0
+        entrada = imagem_de_arquivo(l["caminho"], self.tamanho, self.qualidade,
+                                    self.usar_ela)
+        x = torch.from_numpy(entrada.astype(np.float32)).permute(2, 0, 1) / 255.0
         if self.aumentar and random.random() < 0.5:
             x = torch.flip(x, dims=[2])          # espelhar não altera o padrão ELA
         return x, l["rotulo"]
@@ -58,7 +65,8 @@ class ELADataset(Dataset):
 
 def criar_loader(linhas, args, treino=False):
     return DataLoader(
-        ELADataset(linhas, args.tamanho, args.qualidade, aumentar=treino),
+        ELADataset(linhas, args.tamanho, args.qualidade,
+                   usar_ela=args.ela == "sim", aumentar=treino),
         batch_size=args.lote, shuffle=treino, num_workers=args.workers,
         pin_memory=torch.cuda.is_available(),
         persistent_workers=args.workers > 0)
@@ -119,6 +127,8 @@ def main():
     a.add_argument("--index", default="index.csv")
     a.add_argument("--tamanho", type=int, default=256)
     a.add_argument("--qualidade", type=int, default=95, help="qualidade JPEG do ELA")
+    a.add_argument("--ela", choices=["sim", "nao"], default="sim",
+                   help="usar mapas ELA como entrada do modelo (padrão: sim)")
     a.add_argument("--treino_condicoes", nargs="*", default=None,
                    help="condições usadas em treino/validação (padrão: todas)")
     a.add_argument("--fontes_teste", nargs="*", default=[],
@@ -130,13 +140,21 @@ def main():
     a.add_argument("--lr", type=float, default=0.01)
     a.add_argument("--workers", type=int, default=4)
     a.add_argument("--seed", type=int, default=42)
-    a.add_argument("--saida", default="resultados")
+    a.add_argument("--saida", default=None,
+                   help="pasta-base dos experimentos (padrão: resultados)")
     a.add_argument("--nome", default=None, help="nome do experimento (pasta de saída)")
     args = a.parse_args()
+
+    if args.saida is None:
+        print("[AVISO] --saida não informado; usando a pasta 'resultados'")
+        args.saida = "resultados"
+    usar_ela = args.ela == "sim"
 
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     disp = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"dispositivo: {disp}")
+    print("entrada: " + (f"ELA (qualidade {args.qualidade})" if usar_ela
+                         else "RGB (sem ELA)"))
 
     # ---- leitura e filtros
     linhas = ler_index(args.index)
@@ -171,9 +189,12 @@ def main():
     nome = args.nome or "treino_" + ("todas" if conds is None else "+".join(sorted(conds)))
     if args.fontes_teste:
         nome += "__sem_" + "+".join(args.fontes_teste)
+    if not usar_ela and not args.nome:
+        nome += "__sem_ela"
     saida = Path(args.saida) / nome
     saida.mkdir(parents=True, exist_ok=True)
-    json.dump(vars(args), open(saida / "args.json", "w"), indent=2, ensure_ascii=False)
+    cfg = dict(vars(args), usar_ela=usar_ela)
+    json.dump(cfg, open(saida / "args.json", "w"), indent=2, ensure_ascii=False)
 
     dl_treino, dl_val = criar_loader(treino, args, treino=True), criar_loader(val, args)
     modelo = CNNArtigo(args.tamanho).to(disp)

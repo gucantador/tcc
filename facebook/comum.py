@@ -61,11 +61,23 @@ def calcular_ela(img, qualidade=95):
     return np.abs(a - b).astype(np.uint8)
 
 
-def ela_de_arquivo(caminho, tamanho=512, qualidade=95):
+def imagem_de_arquivo(caminho, tamanho=512, qualidade=95, usar_ela=True):
+    """Recorte central da imagem, como mapa ELA ou como RGB puro.
+
+    O recorte é o mesmo nos dois modos, então experimentos com e sem ELA
+    diferem apenas na representação de entrada.
+    """
     img = recorte_central_alinhado(carregar_rgb(caminho), tamanho)
     if img is None:
         return None
-    return calcular_ela(img, qualidade)
+    if usar_ela:
+        return calcular_ela(img, qualidade)
+    return np.asarray(img, dtype=np.uint8)
+
+
+def ela_de_arquivo(caminho, tamanho=512, qualidade=95):
+    """Atalho mantido por compatibilidade: sempre calcula o ELA."""
+    return imagem_de_arquivo(caminho, tamanho, qualidade, usar_ela=True)
 
 
 # ---------------------------------------------------------------- divisão

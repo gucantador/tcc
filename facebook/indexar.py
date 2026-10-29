@@ -85,7 +85,7 @@ def ler_cabecalho(args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--saida", default="index.csv")
-    ap.add_argument("--tamanho", type=int, default=256,
+    ap.add_argument("--tamanho", type=int, default=512,
                     help="tamanho do recorte que será usado no treino (só para o relatório)")
     ap.add_argument("--workers", type=int, default=os.cpu_count())
     args = ap.parse_args()
